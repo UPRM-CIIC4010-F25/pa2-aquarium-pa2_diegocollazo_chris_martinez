@@ -12,7 +12,20 @@ void Creature::normalize() {
 }
 
 void Creature::bounce() {
-    // should implement boundary controls here
+    if(m_x + m_collisionRadius <= 0){
+        m_x = m_collisionRadius;
+        m_x = abs(m_x);
+    } else if(m_x - m_collisionRadius >= m_width){
+        m_x = m_width-m_collisionRadius;
+        m_x = abs(m_x);
+    }
+    if(m_y + m_collisionRadius <= 0){
+        m_y = m_collisionRadius;
+        m_y = abs(m_y);
+    } else if(m_y - m_collisionRadius >= m_height){
+        m_y = m_height-m_collisionRadius;
+        m_y = abs(m_y);
+    }
 }
 
 
