@@ -52,7 +52,14 @@ void ofApp::setup(){
         GameSceneKindToString(GameSceneKind::GAME_OVER),
         std::make_shared<GameSprite>("game-over.png", ofGetWindowWidth(), ofGetWindowHeight())
     ));
-
+    //Adding Music to listen to while you eat those mf-ers
+    if (!backgroundMusic.load("music/OST.mp3")) {
+        ofLogError() << "Failed to load OST.mp3!";
+    } else{
+        backgroundMusic.setLoop(true);
+        backgroundMusic.setVolume(.5f);
+        backgroundMusic.play();
+    }
     ofSetLogLevel(OF_LOG_NOTICE); // Set default log level
 }
 
@@ -71,7 +78,6 @@ void ofApp::update(){
         }
         
     }
-
     gameManager->UpdateActiveScene();
     
 
