@@ -87,10 +87,33 @@ void NPCreature::move() {
     m_y += m_dy * m_speed;
     if(m_dx < 0 ){
         this->m_sprite->setFlipped(true);
+
     }else {
         this->m_sprite->setFlipped(false);
     }
+    const bool hitLeft = (m_x-m_collisionRadius < 0.0f);
+    const bool hitRight = (m_x-m_collisionRadius > m_width);
+    const bool hitTop = (m_y-m_collisionRadius < 0.0f);
+    const bool hitBottom = (m_y-m_collisionRadius > m_height);
+    const bool Bounced = hitLeft || hitRight || hitTop || hitBottom;
+    
     bounce();
+
+    if(Bounced){
+        auto rand01 = []() -> float{return (static_cast<float>(rand()%200)-100.0f)/100.0f;};
+        
+        float rx = rand01();
+        float ry = rand01();
+
+        if(hitLeft) {rx = abs(rx);}
+        if(hitRight) {rx = -abs(rx);}
+        if(hitTop) {ry = abs(ry);}
+        if(hitBottom) {ry = -abs(ry);}
+        
+        m_dx = rx;
+        m_dy = ry;
+        normalize();
+    }
 }
 
 void NPCreature::draw() const {
