@@ -1,7 +1,6 @@
 #include "Aquarium.h"
 #include <cstdlib>
 
-
 std::string AquariumCreatureTypeToString(AquariumCreatureType t){
     switch(t){
         case AquariumCreatureType::BiggerFish:
@@ -199,6 +198,7 @@ AquariumSpriteManager::AquariumSpriteManager(){
     this->m_big_fish = std::make_shared<GameSprite>("bigger-fish.png", 120, 120);
     this->m_Bonniefish = std::make_shared<GameSprite>("Bonniefishie.png", 90, 90);
     this->m_Randomfish = std::make_shared<GameSprite>("Randomfishie.png", 90, 90);
+
 
 
     m_speedBoost = std::make_shared<GameSprite>("speed-boost.png", 50, 50);
@@ -454,6 +454,29 @@ void AquariumGameScene::Update(){
         event = DetectAquariumCollisions(m_aquarium, m_player);
         if (event != nullptr && event->isCollisionEvent()) {
 
+            int oldLevel = m_aquarium->getCurrentLevel();
+m_aquarium->update();
+int newLevel = m_aquarium->getCurrentLevel();
+
+// Change background if the level changed
+if (newLevel != oldLevel) {
+    auto it = m_levelBackgrounds.find(newLevel);
+    if (it != m_levelBackgrounds.end()) {
+        m_background.load(it->second);
+    }
+}   m_player->update();
+    m_aquarium->update();
+
+    int level = m_aquarium->getCurrentLevel();
+    switch(level){
+        case 0: m_background.load("background.png"); break;
+        case 1: m_background.load("background.png"); break;
+        case 2: m_background.load("dnuorgkcab.png"); break;
+        case 3: m_background.load("dnuorgkcab.png"); break;
+        case 4: m_background.load("dnuorgkcab.png"); break;
+    }
+
+
             if(event->creatureB != nullptr){
                 event->print();
                 if(m_player->getPower() < event->creatureB->getValue()){
@@ -477,6 +500,10 @@ void AquariumGameScene::Update(){
 }
 
 void AquariumGameScene::Draw() {
+    this->m_player->draw();
+    this->m_aquarium->draw();
+    this->paintAquariumHUD();
+    m_background.draw(0, 0, ofGetWidth(), ofGetHeight());
     this->m_player->draw();
     this->m_aquarium->draw();
     this->paintAquariumHUD();
