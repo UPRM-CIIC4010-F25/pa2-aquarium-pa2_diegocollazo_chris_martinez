@@ -8,6 +8,10 @@ std::string AquariumCreatureTypeToString(AquariumCreatureType t){
             return "BiggerFish";
         case AquariumCreatureType::NPCreature:
             return "BaseFish";
+        case AquariumCreatureType::BonnieFish:
+            return "BonnieFish";
+        case AquariumCreatureType::RandomFish:
+            return "RandomFish";
         default:
             return "UknownFish";
     }
@@ -193,6 +197,9 @@ void BiggerFish::draw() const {
 AquariumSpriteManager::AquariumSpriteManager(){
     this->m_npc_fish = std::make_shared<GameSprite>("base-fish.png", 70,70);
     this->m_big_fish = std::make_shared<GameSprite>("bigger-fish.png", 120, 120);
+    this->m_Bonniefish = std::make_shared<GameSprite>("Bonniefishie.png", 90, 90);
+    this->m_Randomfish = std::make_shared<GameSprite>("Randomfishie.png", 90, 90);
+
 
     m_speedBoost = std::make_shared<GameSprite>("speed-boost.png", 50, 50);
     m_powerBoost = std::make_shared<GameSprite>("power-boost.png", 50, 50);
@@ -207,6 +214,12 @@ std::shared_ptr<GameSprite> AquariumSpriteManager::GetSprite(AquariumCreatureTyp
             
         case AquariumCreatureType::NPCreature:
             return std::make_shared<GameSprite>(*this->m_npc_fish);
+
+         case AquariumCreatureType::BonnieFish:
+            return std::make_shared<GameSprite>(*this->m_Bonniefish);
+
+        case AquariumCreatureType::RandomFish:
+            return std::make_shared<GameSprite>(*this->m_Randomfish);
         default:
             return nullptr;
     }
@@ -295,27 +308,63 @@ std::shared_ptr<Creature> Aquarium::getCreatureAt(int index) {
     }
     return m_creatures[index];
 }
+BonnieFish::BonnieFish(float x, float y, int speed, std::shared_ptr<GameSprite> sprite)
+    : NPCreature(x, y, speed, sprite)
+{
+    m_creatureType = AquariumCreatureType::BonnieFish;
+}
 
+void BonnieFish::move() {
+    zigTimer++;
 
+    if (zigTimer >= maxZigTimer) {
+        m_dy = -m_dy;
+        zigTimer = 0;
+    }
+
+    m_x += m_dx * m_speed;
+    m_y += m_dy * m_speed;
+
+    if (m_dx < 0) m_sprite->setFlipped(true);
+    else m_sprite->setFlipped(false);
+
+    bounce();
+}
 
 void Aquarium::SpawnCreature(AquariumCreatureType type) {
     int x = rand() % this->getWidth();
     int y = rand() % this->getHeight();
     int speed = 1 + rand() % 25; // Speed between 1 and 25
+    ofLogNotice() << "Spawned " << AquariumCreatureTypeToString(type)
+              << " at (" << x << "," << y << ")";
+
+
+        std::shared_ptr<Creature> creature = nullptr;
 
     switch (type) {
         case AquariumCreatureType::NPCreature:
-            this->addCreature(std::make_shared<NPCreature>(x, y, speed, this->m_sprite_manager->GetSprite(AquariumCreatureType::NPCreature)));
+            creature = std::make_shared<NPCreature>(x, y, speed, m_sprite_manager->GetSprite(AquariumCreatureType::NPCreature));
             break;
         case AquariumCreatureType::BiggerFish:
-            this->addCreature(std::make_shared<BiggerFish>(x, y, speed, this->m_sprite_manager->GetSprite(AquariumCreatureType::BiggerFish)));
+            creature = std::make_shared<BiggerFish>(x, y, speed, m_sprite_manager->GetSprite(AquariumCreatureType::BiggerFish));
+            break;
+        case AquariumCreatureType::BonnieFish:
+            creature = std::make_shared<BonnieFish>(x, y, speed, m_sprite_manager->GetSprite(AquariumCreatureType::BonnieFish));
+            break;
+        case AquariumCreatureType::RandomFish:
+            creature = std::make_shared<RandomFish>(x, y, speed, m_sprite_manager->GetSprite(AquariumCreatureType::RandomFish));
             break;
         default:
             ofLogError() << "Unknown creature type to spawn!";
-            break;
+            return;
     }
 
-}
+    if (creature) {
+        ofLogNotice() << "Spawning creature: " << AquariumCreatureTypeToString(type)
+                      << " at (" << x << "," << y << ")";
+        this->addCreature(creature);
+    }
+};
 
 
 // repopulation will be called from the levl class
@@ -519,6 +568,9 @@ std::vector<AquariumCreatureType> Level_2::Repopulate() {
                 toRepopulate.push_back(node->creatureType);
             }
             node->currentPopulation += delta;
+
+
+            
         }
     }
     return toRepopulate;
