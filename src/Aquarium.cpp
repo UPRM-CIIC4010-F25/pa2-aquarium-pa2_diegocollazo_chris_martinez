@@ -2,7 +2,7 @@
 #include <cstdlib>
 
 
-string AquariumCreatureTypeToString(AquariumCreatureType t){
+std::string AquariumCreatureTypeToString(AquariumCreatureType t){
     switch(t){
         case AquariumCreatureType::BiggerFish:
             return "BiggerFish";
@@ -15,7 +15,7 @@ string AquariumCreatureTypeToString(AquariumCreatureType t){
 
 // PlayerCreature Implementation
 PlayerCreature::PlayerCreature(float x, float y, int speed, std::shared_ptr<GameSprite> sprite)
-: Creature(x, y, speed, 10.0f, 1, sprite) {}
+: Creature(x, y, speed, 10.0f, 1, sprite) {m_dx = 1.0f; m_dy = 0.0f;}
 
 
 void PlayerCreature::setDirection(float dx, float dy) {
@@ -30,6 +30,34 @@ void PlayerCreature::move() {
     this->bounce();
 }
 
+void PlayerCreature::applyPowerUp(PowerUpType t) {
+    switch(t) {
+        case PowerUpType::SpeedBoost:
+            m_speed += 2;
+            break;
+
+        case PowerUpType::PowerBoost:
+            m_power += 1;
+            break;
+
+        case PowerUpType::Dash:
+            m_dashAvailable = true;
+            break;
+
+        case PowerUpType::GlowUp:
+            m_glowTimer = 600; // ~10 sec
+            break;
+    }
+}
+
+void PlayerCreature::dash() {
+    if (!m_dashAvailable) return;
+    m_x += m_dx * (m_speed * 6);
+    m_y += m_dy * (m_speed * 6);
+    m_dashAvailable = false;
+}
+
+
 void PlayerCreature::reduceDamageDebounce() {
     if (m_damage_debounce > 0) {
         --m_damage_debounce;
@@ -39,15 +67,21 @@ void PlayerCreature::reduceDamageDebounce() {
 void PlayerCreature::update() {
     this->reduceDamageDebounce();
     this->move();
+    if (m_glowTimer > 0) m_glowTimer--;
+    if (m_powerUpTimer > 0) m_powerUpTimer--;
 }
 
 
 void PlayerCreature::draw() const {
     
     ofLogVerbose() << "PlayerCreature at (" << m_x << ", " << m_y << ") with speed " << m_speed << std::endl;
-    if (this->m_damage_debounce > 0) {
+    if (m_glowTimer > 0){
+        ofSetColor(ofColor::yellow);
+    }
+    else if (this->m_damage_debounce > 0) {
         ofSetColor(ofColor::red); // Flash red if in damage debounce
     }
+    else{ofSetColor(ofColor::white);}
     if (m_sprite) {
         m_sprite->draw(m_x, m_y);
     }
@@ -159,6 +193,11 @@ void BiggerFish::draw() const {
 AquariumSpriteManager::AquariumSpriteManager(){
     this->m_npc_fish = std::make_shared<GameSprite>("base-fish.png", 70,70);
     this->m_big_fish = std::make_shared<GameSprite>("bigger-fish.png", 120, 120);
+
+    m_speedBoost = std::make_shared<GameSprite>("speed-boost.png", 50, 50);
+    m_powerBoost = std::make_shared<GameSprite>("power-boost.png", 50, 50);
+    m_dash       = std::make_shared<GameSprite>("dash.png", 50, 50);
+    m_glowUp     = std::make_shared<GameSprite>("glow-up.png", 50, 50);
 }
 
 std::shared_ptr<GameSprite> AquariumSpriteManager::GetSprite(AquariumCreatureType t){
@@ -170,6 +209,15 @@ std::shared_ptr<GameSprite> AquariumSpriteManager::GetSprite(AquariumCreatureTyp
             return std::make_shared<GameSprite>(*this->m_npc_fish);
         default:
             return nullptr;
+    }
+}
+std::shared_ptr<GameSprite> AquariumSpriteManager::GetPowerUpSprite(PowerUpType t){
+    switch (t) {
+        case PowerUpType::SpeedBoost: return m_speedBoost;
+        case PowerUpType::PowerBoost: return m_powerBoost;
+        case PowerUpType::Dash:       return m_dash;
+        case PowerUpType::GlowUp:     return m_glowUp;
+        default: return nullptr;
     }
 }
 
@@ -192,17 +240,37 @@ void Aquarium::addAquariumLevel(std::shared_ptr<AquariumLevel> level){
     this->m_aquariumlevels.push_back(level);
 }
 
+void Aquarium::addPowerUp(std::shared_ptr<PowerUp> p) {
+    m_powerups.push_back(p);
+}
+
 void Aquarium::update() {
     for (auto& creature : m_creatures) {
         creature->move();
     }
     this->Repopulate();
+      if (rand() % 60 == 0) { 
+        SpawnRandomPowerUp();
+    }
 }
 
 void Aquarium::draw() const {
     for (const auto& creature : m_creatures) {
         creature->draw();
     }
+    for (const auto& p : m_powerups) {
+        p->draw();
+    }
+}
+
+void Aquarium::SpawnRandomPowerUp() {
+    int x = rand() % m_width;
+    int y = rand() % m_height;
+
+    PowerUpType type = static_cast<PowerUpType>(rand() % 4);
+    auto sprite = m_sprite_manager->GetPowerUpSprite(type);
+
+    addPowerUp(std::make_shared<PowerUp>(x, y, type, sprite));
 }
 
 
@@ -295,46 +363,68 @@ std::shared_ptr<GameEvent> DetectAquariumCollisions(std::shared_ptr<Aquarium> aq
     return nullptr;
 };
 
-//  Imlementation of the AquariumScene
+std::shared_ptr<PowerUp> DetectPowerUpCollision(
+    std::shared_ptr<Aquarium> aquarium,
+    std::shared_ptr<PlayerCreature> player)
+{
+    if (!aquarium || !player) 
+        return nullptr;
+
+    for (int i = 0; i < aquarium->getPowerUpCount(); i++) 
+    {
+        auto p = aquarium->getPowerUpAt(i);
+        if (!p) 
+            continue;
+
+        if (checkCollision(player, p->getX(), p->getY(), 20.0f)) 
+        {
+            return p;  
+        }
+    }
+    return nullptr;   
+}
+
+bool checkCollision(std::shared_ptr<PlayerCreature> player, float x, float y, float radius) {
+    if (!player) return false;
+    float dx = player->getX() - x;
+    float dy = player->getY() - y;
+    float distanceSquared = dx*dx + dy*dy;
+    return distanceSquared <= radius * radius;
+}
+
 
 void AquariumGameScene::Update(){
     std::shared_ptr<GameEvent> event;
-
-    this->m_player->update();
-
-    if (this->updateControl.tick()) {
-        event = DetectAquariumCollisions(this->m_aquarium, this->m_player);
+    m_player->update();
+    if (updateControl.tick()) {
+        auto powerUp = DetectPowerUpCollision(m_aquarium, m_player);
+        if (powerUp) {
+            m_player->applyPowerUp(powerUp->getType());
+            m_aquarium->removePowerUp(powerUp);
+        }
+        event = DetectAquariumCollisions(m_aquarium, m_player);
         if (event != nullptr && event->isCollisionEvent()) {
-            ofLogVerbose() << "Collision detected between player and NPC!" << std::endl;
+
             if(event->creatureB != nullptr){
                 event->print();
-                if(this->m_player->getPower() < event->creatureB->getValue()){
-                    ofLogNotice() << "Player is too weak to eat the creature!" << std::endl;
-                    this->m_player->loseLife(3*60); // 3 frames debounce, 3 seconds at 60fps
-                    if(this->m_player->getLives() <= 0){
-                        this->m_lastEvent = std::make_shared<GameEvent>(GameEventType::GAME_OVER, this->m_player, nullptr);
+                if(m_player->getPower() < event->creatureB->getValue()){
+                    m_player->loseLife(3*60);
+                    if(m_player->getLives() <= 0){
+                        m_lastEvent = std::make_shared<GameEvent>(GameEventType::GAME_OVER, m_player, nullptr);
                         return;
                     }
-                }
-                else{
-                    this->m_aquarium->removeCreature(event->creatureB);
-                    this->m_player->addToScore(1, event->creatureB->getValue());
-                    if (this->m_player->getScore() % 25 == 0){
-                        this->m_player->increasePower(1);
-                        ofLogNotice() << "Player power increased to " << this->m_player->getPower() << "!" << std::endl;
+                } else {
+                    m_aquarium->removeCreature(event->creatureB);
+                    m_player->addToScore(1, event->creatureB->getValue());
+                    if (m_player->getScore() % 25 == 0){
+                        m_player->increasePower(1);
                     }
-                    
                 }
-                
-                
-
-            } else {
-                ofLogError() << "Error: creatureB is null in collision event." << std::endl;
             }
         }
-        this->m_aquarium->update();
-    }
 
+        m_aquarium->update();
+    }
 }
 
 void AquariumGameScene::Draw() {
@@ -383,7 +473,11 @@ bool AquariumLevel::isCompleted(){
     return this->m_level_score >= this->m_targetScore;
 }
 
-
+void Aquarium::removePowerUp(std::shared_ptr<PowerUp> p) {
+    auto it = std::find(m_powerups.begin(), m_powerups.end(), p);
+    if (it != m_powerups.end())
+        m_powerups.erase(it);
+}
 
 
 std::vector<AquariumCreatureType> Level_0::Repopulate() {

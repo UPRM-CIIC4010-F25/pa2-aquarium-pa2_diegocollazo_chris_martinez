@@ -179,7 +179,7 @@ class GameIntroScene : public GameScene {
     public:
         GameIntroScene(string name, std::shared_ptr<GameSprite> banner)
         : m_name(name), m_banner(std::move(banner)){};
-        string GetName() override {return this->m_name;}
+        std::string GetName() override {return this->m_name;}
         void Update() override;
         void Draw() override;
     private:
@@ -191,7 +191,7 @@ class GameOverScene : public GameScene {
     public:
         GameOverScene(string name, std::shared_ptr<GameSprite> banner)
         : m_name(name), m_banner(std::move(banner)){};
-        string GetName() override {return this->m_name;}
+        std::string GetName() override {return this->m_name;}
         void Update() override;
         void Draw() override;
     private:

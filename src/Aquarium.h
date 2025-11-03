@@ -44,6 +44,12 @@ class AquariumLevel : public GameLevel {
 };
 
 
+enum class PowerUpType {
+    SpeedBoost,
+    PowerBoost,
+    Dash,
+    GlowUp
+};
 class PlayerCreature : public Creature {
 public:
 
@@ -54,6 +60,8 @@ public:
     void changeSpeed(int speed);
     void setLives(int lives) { m_lives = lives; }
     void setDirection(float dx, float dy);
+    void applyPowerUp(PowerUpType t);
+    void dash();
     float isXDirectionActive() { return m_dx != 0; }
     float isYDirectionActive() {return m_dy != 0; }
     float getDx() { return m_dx; }
@@ -73,6 +81,31 @@ private:
     int m_lives = 3;
     int m_power = 1; // mark current power lvl
     int m_damage_debounce = 0; // frames to wait after eating
+    bool m_dashAvailable = false;
+    int m_glowTimer = 0; 
+    int m_powerUpTimer = 0;
+    float m_speed = 5;
+};
+
+class PowerUp {
+public:
+    PowerUp(float x, float y, PowerUpType type, std::shared_ptr<GameSprite> sprite)
+        : m_x(x), m_y(y), m_type(type), m_sprite(sprite) {}
+
+    float getX() const { return m_x; }
+    float getY() const { return m_y; }
+    PowerUpType getType() const { return m_type; }
+
+    void draw() const {
+        if (m_sprite) {
+            m_sprite->draw(m_x, m_y);
+        }
+    }
+
+private:
+    float m_x, m_y;
+    PowerUpType m_type;
+    std::shared_ptr<GameSprite> m_sprite;
 };
 
 class NPCreature : public Creature {
@@ -99,9 +132,15 @@ class AquariumSpriteManager {
         AquariumSpriteManager();
         ~AquariumSpriteManager() = default;
         std::shared_ptr<GameSprite>GetSprite(AquariumCreatureType t);
+        std::shared_ptr<GameSprite> GetPowerUpSprite(PowerUpType t);
     private:
         std::shared_ptr<GameSprite> m_npc_fish;
         std::shared_ptr<GameSprite> m_big_fish;
+        std::shared_ptr<GameSprite> m_speedBoost;
+        std::shared_ptr<GameSprite> m_powerBoost;
+        std::shared_ptr<GameSprite> m_dash;
+        std::shared_ptr<GameSprite> m_glowUp;
+        
 };
 
 
@@ -118,6 +157,14 @@ public:
     void setMaxPopulation(int n) { m_maxPopulation = n; }
     void Repopulate();
     void SpawnCreature(AquariumCreatureType type);
+    void addPowerUp(std::shared_ptr<PowerUp> p);
+    void SpawnRandomPowerUp();
+    int getPowerUpCount() const{ return m_powerups.size();}
+    std::shared_ptr<PowerUp> getPowerUpAt(int index){
+        if (index < 0 || index >= (int)m_powerups.size()) return nullptr;
+        return m_powerups[index];
+    }
+    void removePowerUp(std::shared_ptr<PowerUp> p);
     
     std::shared_ptr<Creature> getCreatureAt(int index);
     int getCreatureCount() const { return m_creatures.size(); }
@@ -132,12 +179,14 @@ private:
     int currentLevel = 0;
     std::vector<std::shared_ptr<Creature>> m_creatures;
     std::vector<std::shared_ptr<Creature>> m_next_creatures;
+    std::vector<std::shared_ptr<PowerUp>> m_powerups;
     std::vector<std::shared_ptr<AquariumLevel>> m_aquariumlevels;
     std::shared_ptr<AquariumSpriteManager> m_sprite_manager;
 };
 
 
 std::shared_ptr<GameEvent> DetectAquariumCollisions(std::shared_ptr<Aquarium> aquarium, std::shared_ptr<PlayerCreature> player);
+    std::shared_ptr<PowerUp> DetectPowerUpCollision(std::shared_ptr<Aquarium> aquarium,std::shared_ptr<PlayerCreature> player);
 
 
 class AquariumGameScene : public GameScene {
@@ -152,6 +201,7 @@ class AquariumGameScene : public GameScene {
         void Update() override;
         void Draw() override;
     private:
+        int m_powerUpTimer = 0;
         void paintAquariumHUD();
         std::shared_ptr<PlayerCreature> m_player;
         std::shared_ptr<Aquarium> m_aquarium;
@@ -190,3 +240,8 @@ class Level_2 : public AquariumLevel  {
         std::vector<AquariumCreatureType> Repopulate() override;
 
 };
+
+std::shared_ptr<PowerUp> DetectPowerUpCollision(
+    std::shared_ptr<Aquarium> aquarium,
+    std::shared_ptr<PlayerCreature> player);
+bool checkCollision(std::shared_ptr<PlayerCreature> player, float x, float y, float radius);
