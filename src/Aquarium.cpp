@@ -556,49 +556,14 @@ void Aquarium::removePowerUp(std::shared_ptr<PowerUp> p) {
 }
 
 
-std::vector<AquariumCreatureType> Level_0::Repopulate() {
+std::vector<AquariumCreatureType> AquariumLevel::Repopulate() {
     std::vector<AquariumCreatureType> toRepopulate;
-    for(std::shared_ptr<AquariumLevelPopulationNode> node : this->m_levelPopulation){
+    for(const auto& node : m_levelPopulation){
         int delta = node->population - node->currentPopulation;
-        ofLogVerbose() << "to Repopulate :  " << delta << endl;
         if(delta >0){
-            for(int i = 0; i<delta; i++){
-                toRepopulate.push_back(node->creatureType);
-            }
-            node->currentPopulation += delta;
+            toRepopulate.insert(toRepopulate.end(),delta,node->creatureType);
         }
     }
     return toRepopulate;
 
-}
-
-std::vector<AquariumCreatureType> Level_1::Repopulate() {
-    std::vector<AquariumCreatureType> toRepopulate;
-    for(std::shared_ptr<AquariumLevelPopulationNode> node : this->m_levelPopulation){
-        int delta = node->population - node->currentPopulation;
-        if(delta >0){
-            for(int i=0; i<delta; i++){
-                toRepopulate.push_back(node->creatureType);
-            }
-            node->currentPopulation += delta;
-        }
-    }
-    return toRepopulate;
-}
-
-std::vector<AquariumCreatureType> Level_2::Repopulate() {
-    std::vector<AquariumCreatureType> toRepopulate;
-    for(std::shared_ptr<AquariumLevelPopulationNode> node : this->m_levelPopulation){
-        int delta = node->population - node->currentPopulation;
-        if(delta >0){
-            for(int i=0; i<delta; i++){
-                toRepopulate.push_back(node->creatureType);
-            }
-            node->currentPopulation += delta;
-
-
-            
-        }
-    }
-    return toRepopulate;
 }
