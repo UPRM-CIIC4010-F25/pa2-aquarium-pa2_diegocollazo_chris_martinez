@@ -25,9 +25,9 @@ Grading
 | Student Number | Student Name | Student Email |
 |-|-|-|
 |802-21-1861| Diego A. Collazo Munoz| diego.collazo1@upr.edu |
-|(STUDENT NUMBER HERE)| (STUDENT NAME HERE)| (STUDENT EMAIL HERE) |
+|802-24-6919| Chris Y. Martinez Roman| chrisyahel.martinez@upr.edu|
 
----
+--- 
 
 Any project that doesn't compile will receive a 0.
 
